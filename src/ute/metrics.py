@@ -19,6 +19,8 @@ for large n.
 
 from __future__ import annotations
 
+import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import numpy as np
@@ -165,12 +167,18 @@ def evaluate(
         return out
 
     point = one(None)
-    rng = np.random.default_rng(seed)
-    reps = {k: [] for k in point}
-    for _ in range(n_boot):
-        w = rng.poisson(1.0, size=len(y)).astype(np.float64)
-        for k, v in one(w).items():
-            reps[k].append(v)
+
+    def replicate(i: int) -> dict:
+        # one generator per replicate: results do not depend on thread scheduling
+        w = np.random.default_rng([seed, i]).poisson(1.0, size=len(y)).astype(np.float64)
+        return one(w)
+
+    # numpy releases the GIL in cumsum/gather on large arrays, so threads give real speed-up
+    # without copying the test set into worker processes.
+    workers = max(1, min(6, (os.cpu_count() or 2) - 1))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        outs = list(pool.map(replicate, range(n_boot)))
+    reps = {k: [o[k] for o in outs] for k in point}
     result = {}
     for k, v in point.items():
         arr = np.asarray(reps[k], dtype=np.float64)
