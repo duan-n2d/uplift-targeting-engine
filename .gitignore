@@ -1,0 +1,19 @@
+# data and model outputs (never committed)
+data/
+models/
+mlruns/
+mlflow.db
+dist/
+
+# python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+
+# os / editors
+.DS_Store
+.vscode/
+.idea/
