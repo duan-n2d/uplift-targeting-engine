@@ -17,7 +17,7 @@ HERE = Path(__file__).resolve().parent
 ART = next(p for p in (HERE / "artifacts", HERE.parent / "artifacts") if p.exists())
 
 LABELS = {
-    "random": "Random",
+    "random": "Random (expected)",
     "response": "Response model",
     "s_learner": "S-learner",
     "t_learner": "T-learner",
@@ -40,6 +40,10 @@ curves, deciles, summary = load()
 outcome = "conversion"
 prod = summary.get("production_model")
 c = curves[(curves.outcome == outcome) & (curves.kind == "uplift")].copy()
+# One random draw is noisy; show what random targeting buys in expectation: ATE x share.
+ate = summary["outcomes"][outcome]["ate"]
+is_random = c["model"] == "random"
+c.loc[is_random, "value"] = c.loc[is_random, "share"] * ate
 c["model"] = c["model"].map(LABELS).fillna(c["model"])
 
 st.title("Who should get the voucher?")
@@ -63,7 +67,7 @@ at["profit"] = at["incremental"] * value - cost * base * budget
 at = at.sort_values("incremental", ascending=False)
 
 best = at.iloc[0]
-rand = at[at.model == "Random"].iloc[0]
+rand = at[at.model == "Random (expected)"].iloc[0]
 col1, col2, col3 = st.columns(3)
 col1.metric(f"Best rule: {best.model}", f"{best.incremental:,.0f} extra conversions")
 col2.metric("Random targeting", f"{rand.incremental:,.0f}")
@@ -90,7 +94,7 @@ line = (
     )
 )
 rule = alt.Chart(pd.DataFrame({"share": [budget]})).mark_rule(strokeDash=[4, 4]).encode(x="share:Q")
-st.altair_chart(line + rule, use_container_width=True)
+st.altair_chart(line + rule, width="stretch")
 
 st.subheader(f"At {budget:.0%} of the base")
 st.dataframe(
@@ -98,7 +102,7 @@ st.dataframe(
         columns={"model": "Rule", "incremental": "Incremental conversions", "profit": "Profit"}
     ),
     hide_index=True,
-    use_container_width=True,
+    width="stretch",
     column_config={
         "Incremental conversions": st.column_config.NumberColumn(format="%.0f"),
         "Profit": st.column_config.NumberColumn(format="%.0f"),
@@ -118,7 +122,7 @@ if prod:
             tooltip=["decile", "n", alt.Tooltip("uplift_pp:Q", format=".3f")],
         )
     )
-    st.altair_chart(bars, use_container_width=True)
+    st.altair_chart(bars, width="stretch")
     st.caption(
         "Deciles at the bottom with uplift near or below zero are customers the voucher does not "
         "move (or puts off): skipping them saves budget."
