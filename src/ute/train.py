@@ -239,9 +239,12 @@ def drift_check(train: Frame, test: Frame, n: int = 1_000_000) -> dict:
     rng = np.random.default_rng(config.SEED)
     ref = train.X[rng.choice(len(train), min(n, len(train)), replace=False)]
     cur = test.X[rng.choice(len(test), min(n, len(test)), replace=False)]
-    shifted = cur.copy()
-    shifted[:, 0] += 0.5 * np.std(ref[:, 0])  # f0 moves by half a standard deviation
-    shifted[:, 8] *= 1.3  # f8 rescaled by 30%
+    # Simulated audience-mix change (e.g. a campaign pulled from a different channel): customers
+    # with f0 above its median are three times as likely to be in the batch. Shifting values
+    # instead would be unrealistic here, because most features sit on a few repeated values.
+    above = cur[:, 0] > np.median(ref[:, 0])
+    keep = rng.random(len(cur)) < np.where(above, 0.75, 0.25)
+    shifted = cur[keep]
     rows = drift.psi_table(ref, cur, config.FEATURES)
     sim = drift.psi_table(ref, shifted, config.FEATURES)
     for r, s in zip(rows, sim, strict=True):
@@ -250,6 +253,6 @@ def drift_check(train: Frame, test: Frame, n: int = 1_000_000) -> dict:
     return {
         "reference": "train sample",
         "current": "test sample",
-        "simulated_shift": "f0 + 0.5 sd, f8 x 1.3",
+        "simulated_shift": "audience mix: customers with f0 above its median 3x as likely",
         "features": rows,
     }
