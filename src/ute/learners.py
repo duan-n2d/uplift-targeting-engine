@@ -10,20 +10,30 @@ The experiment is a randomised controlled trial, so the propensity P(t=1 | x) is
 from __future__ import annotations
 
 import inspect
+import os
 from typing import Any
 
 import lightgbm as lgb
 import numpy as np
 
+
+def _default_threads() -> int:
+    """Half the cores, at most 8. OpenMP threads spin at barriers, so asking for every core on a
+    machine that is also doing other work can make training 10x slower, not faster."""
+    if env := os.environ.get("UTE_N_JOBS"):
+        return int(env)
+    return max(1, min(8, (os.cpu_count() or 2) // 2))
+
+
 DEFAULT_PARAMS: dict[str, Any] = {
-    "n_estimators": 2000,
-    "learning_rate": 0.05,
+    "n_estimators": 1000,
+    "learning_rate": 0.1,
     "num_leaves": 31,
     "min_child_samples": 500,
     "subsample": 0.8,
     "subsample_freq": 1,
     "reg_lambda": 1.0,
-    "n_jobs": -1,
+    "n_jobs": _default_threads(),
     "verbose": -1,
 }
 EARLY_STOPPING = 50
