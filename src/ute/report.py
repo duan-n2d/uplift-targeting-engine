@@ -15,7 +15,7 @@ from ute import config
 
 LABELS = {
     "random": "Random targeting",
-    "response": "Response model (P(convert | treated))",
+    "response": "Response model (treated-group propensity)",
     "s_learner": "S-learner",
     "t_learner": "T-learner",
     "x_learner": "X-learner",
@@ -97,7 +97,7 @@ def headline(summary: dict) -> str:
     return "\n".join(lines)
 
 
-def results_md(summary: dict) -> str:
+def results_md(summary: dict, artifacts_dir: Path = config.ARTIFACTS_DIR) -> str:
     meta = summary["meta"]
     out = [
         "# Results",
@@ -133,7 +133,7 @@ def results_md(summary: dict) -> str:
             out.append(f"| {LABELS.get(name, name)} | {m['fit_seconds']:.0f} | {trees} |")
         out.append("")
 
-    dec = config.ARTIFACTS_DIR / "deciles.csv"
+    dec = artifacts_dir / "deciles.csv"
     if dec.exists():
         d = pd.read_csv(dec)
         d = d[d["outcome"] == "conversion"]
@@ -213,6 +213,6 @@ def main(
 ) -> None:
     summary = json.loads(metrics_path.read_text())
     docs_dir.mkdir(parents=True, exist_ok=True)
-    (docs_dir / "results.md").write_text(results_md(summary), encoding="utf-8")
+    (docs_dir / "results.md").write_text(results_md(summary, metrics_path.parent), encoding="utf-8")
     if readme.exists():
         update_readme(summary, readme)
