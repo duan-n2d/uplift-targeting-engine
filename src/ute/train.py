@@ -61,7 +61,12 @@ def run(
     artifacts_dir: Path = config.ARTIFACTS_DIR,
     models_dir: Path = config.MODELS_DIR,
     leakage: bool = True,
+    secondary_fit_frac: float = 0.2,
 ) -> dict:
+    """``secondary_fit_frac``: share of train/valid used to fit learners for outcomes other than
+    conversion. Visit has 16x more positives, so early stopping runs far longer; it is the
+    secondary outcome, so its learners are fitted on a random sample and still evaluated on the
+    full test split."""
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     models_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
@@ -105,15 +110,21 @@ def run(
                 "models": {},
             }
             fitted = {}
+            tr_o, va_o = train, valid
+            if outcome != "conversion" and secondary_fit_frac < 1.0:
+                rng = np.random.default_rng(config.SEED)
+                tr_o = train.take(np.flatnonzero(rng.random(len(train)) < secondary_fit_frac))
+                va_o = valid.take(np.flatnonzero(rng.random(len(valid)) < secondary_fit_frac))
+            info["fit_rows"] = {"train": len(tr_o), "valid": len(va_o)}
             for name in learners:
-                _log(f"{outcome}: fitting {name}")
+                _log(f"{outcome}: fitting {name} on {len(tr_o):,} rows")
                 learner, s_valid, s_test, secs = fit_and_score(
-                    name, train, valid, test, outcome, params=params
+                    name, tr_o, va_o, test, outcome, params=params
                 )
                 res = metrics.evaluate(
                     y_test, test.t, s_test, budgets=config.BUDGETS, n_boot=n_boot, seed=config.SEED
                 )
-                res["valid_qini"] = metrics.qini_coefficient(valid.y[outcome], valid.t, s_valid)
+                res["valid_qini"] = metrics.qini_coefficient(va_o.y[outcome], va_o.t, s_valid)
                 res["fit_seconds"] = round(secs, 1)
                 res["n_trees"] = learner.n_trees()
                 info["models"][name] = res

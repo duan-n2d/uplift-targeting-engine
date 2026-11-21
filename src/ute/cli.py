@@ -17,6 +17,12 @@ def main(argv: list[str] | None = None) -> None:
     t.add_argument("--learners", nargs="+", default=None)
     t.add_argument("--n-boot", type=int, default=200)
     t.add_argument("--no-leakage", action="store_true")
+    t.add_argument(
+        "--secondary-fit-frac",
+        type=float,
+        default=0.2,
+        help="share of train/valid used to fit learners for the secondary outcome (visit)",
+    )
 
     sub.add_parser("report", help="regenerate docs/results.md and the README results block")
 
@@ -39,6 +45,7 @@ def main(argv: list[str] | None = None) -> None:
             learners=tuple(a.learners or learners.LEARNERS),
             n_boot=a.n_boot,
             leakage=not a.no_leakage,
+            secondary_fit_frac=a.secondary_fit_frac,
         )
     elif a.cmd == "report":
         from ute import report

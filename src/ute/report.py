@@ -119,7 +119,14 @@ def results_md(summary: dict, artifacts_dir: Path = config.ARTIFACTS_DIR) -> str
             f"## Outcome: {outcome} ({tag})",
             "",
             f"Base rate treated {info['base_rate_treated']:.4%}, control "
-            f"{info['base_rate_control']:.4%}, ATE {info['ate'] * 100:.4f} pp.",
+            f"{info['base_rate_control']:.4%}, ATE {info['ate'] * 100:.4f} pp. "
+            + (
+                f"Learners fitted on {info['fit_rows']['train']:,} training rows "
+                f"(early stopping on {info['fit_rows']['valid']:,} validation rows); "
+                "evaluated on the full test split."
+                if "fit_rows" in info
+                else ""
+            ),
             "",
             model_table(info),
             "",
