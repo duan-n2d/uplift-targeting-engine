@@ -8,7 +8,7 @@ install:
 data:            ## download the dataset (~300 MB) and convert it to parquet
 	ute prepare
 
-train:           ## full run on all ~14M rows (about 40 minutes on 14 cores)
+train:           ## full run on all ~14M rows (91 minutes on a busy 14-core laptop)
 	ute train
 
 quick:           ## 10% sample, fewer bootstrap replicates
